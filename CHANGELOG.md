@@ -1,4 +1,4 @@
-# 0.22
+# 0.22.35 (2026-05-07)
 
 - Fixed markdown preview not rendering nested list structure (multi-level indented lists now display with proper nesting)
 - Fixed "Continue last" and "Resume specific" staying enabled (and selected) when a directory or profile with no sessions is chosen in the session selector
