@@ -1,4 +1,4 @@
-# 0.22
+# 0.22.40 (2026-05-12)
 
 - Fixed markdown preview rendering fenced code blocks indented inside list items outside the list instead of nested within their list item
 - Fixed .md files in the Files panel losing all standard context menu items (Open, Cut, Copy, Delete, etc.) after installing the plugin — only "Preview Markdown" was shown
