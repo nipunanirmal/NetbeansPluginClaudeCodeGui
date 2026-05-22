@@ -1,4 +1,4 @@
-# 1.1
+# 1.1.7 (2026-05-22)
 
 - Fixed profile combo not refreshing when profiles are added or removed after session start
 - Added ability to manually add, rename, and sort models in the Model Aliases dialog
