@@ -13,8 +13,8 @@ description: "Learned from hands-on experience + Apache NetBeans official tutori
 
 ### Package / folder rule
 - Files must be in the **`views`** package (`.../views/ClassName.java`) for the `.form` to appear in the NetBeans Projects panel
-- Root package files show `.form` as a visible separate node (Maven projects) — functionally fine but looks cluttered
-- Ant-based projects always hide `.form` — that is normal NetBeans behaviour
+- **Maven projects always show `.form` as a visible separate node** regardless of which package the files are in — this is normal, unavoidable NetBeans/Maven behaviour; it is cosmetic clutter only and does not affect functionality
+- Ant-based projects always hide `.form` nodes — that is normal NetBeans behaviour
 
 ### Mandatory `.java` structure
 ```java
@@ -290,6 +290,24 @@ component.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14)); // NO
   <Layout>...</Layout>
   <SubComponents>...</SubComponents>
 </Container>
+```
+
+### EtchedBorder — ⚠️ TYPO IN NETBEANS SOURCE
+
+`BorderEditor.readEtchedBorder()` looks for the element `"EtchetBorder"` (missing the 'd') — this is a **known typo in NetBeans source code**.
+
+**Wrong** (causes `IOException: Invalid format: missing "EtchetBorder" element`):
+```xml
+<Border info="org.netbeans.modules.form.compat2.border.EtchedBorderInfo">
+  <EtchedBorder/>
+</Border>
+```
+
+**Correct** (use the typo'd name):
+```xml
+<Border info="org.netbeans.modules.form.compat2.border.EtchedBorderInfo">
+  <EtchetBorder/>
+</Border>
 ```
 
 ### JComboBox
