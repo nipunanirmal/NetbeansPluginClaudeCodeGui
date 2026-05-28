@@ -12,6 +12,12 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -106,6 +112,8 @@ public class MCPSseServer {
             ServletContextHandler ctx =
                     new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
             ctx.setContextPath("/");
+            ctx.addFilter(new org.eclipse.jetty.servlet.FilterHolder(new CorsFilter()), "/*",
+                    java.util.EnumSet.of(jakarta.servlet.DispatcherType.REQUEST));
             ctx.addServlet(new ServletHolder(new SseServlet()), "/sse");
             ctx.addServlet(new ServletHolder(new MessagesServlet()), "/messages");
             ServletHolder hookHolder = new ServletHolder(new HookServlet());
@@ -114,6 +122,7 @@ public class MCPSseServer {
             ctx.addServlet(new ServletHolder(new StopServlet()), "/stop");
             ctx.addServlet(new ServletHolder(new PermissionRequestServlet()), "/permission-request");
             ctx.addServlet(new ServletHolder(new OpenAIProxyServlet(this)), "/openai-proxy/*");
+            ctx.addServlet(new ServletHolder(new StatusServlet()), "/status");
 
             server.setHandler(ctx);
             server.setRequestLog((request, response) ->
@@ -209,6 +218,71 @@ public class MCPSseServer {
             if (!q.offer(msg)) {
                 LOGGER.warning("SSE session queue full; broadcast message dropped");
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // CORS filter — applies to every endpoint
+    // -------------------------------------------------------------------------
+
+    /**
+     * Adds CORS headers to every response so that MCP clients running in
+     * Electron / Node.js contexts (Windsurf, Cursor, VS Code) can reach the
+     * server without cross-origin restrictions. Also handles pre-flight
+     * {@code OPTIONS} requests.
+     */
+    private static class CorsFilter implements Filter {
+        @Override
+        public void init(FilterConfig cfg) {}
+
+        @Override
+        public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+                throws IOException, ServletException {
+            HttpServletResponse r = (HttpServletResponse) res;
+            r.setHeader("Access-Control-Allow-Origin",  "*");
+            r.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            r.setHeader("Access-Control-Allow-Headers",
+                    "Content-Type, Accept, Authorization, X-Requested-With");
+            r.setHeader("Access-Control-Max-Age",  "86400");
+            if ("OPTIONS".equalsIgnoreCase(((HttpServletRequest) req).getMethod())) {
+                r.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                return;
+            }
+            chain.doFilter(req, res);
+        }
+
+        @Override
+        public void destroy() {}
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /status  — port-discovery endpoint for external MCP clients
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns a JSON object with the server port and tool-count so that
+     * external clients (Windsurf, Cursor, VS Code) can verify the server is
+     * alive and discover its port programmatically.
+     *
+     * <p>Example response:
+     * <pre>{"status":"running","port":28991,"transport":"sse",
+     * "sseEndpoint":"/sse","messagesEndpoint":"/messages"}</pre>
+     */
+    private class StatusServlet extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+                throws IOException {
+            resp.setContentType("application/json");
+            resp.setCharacterEncoding("UTF-8");
+            String json = String.format(
+                    "{\"status\":\"running\",\"port\":%d,\"transport\":\"sse\","
+                  + "\"sseEndpoint\":\"/sse\",\"messagesEndpoint\":\"/messages\","
+                  + "\"activeSessions\":%d}",
+                    port, sessionQueues.size());
+            byte[] bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            resp.setContentLength(bytes.length);
+            resp.getOutputStream().write(bytes);
+            resp.getOutputStream().flush();
         }
     }
 

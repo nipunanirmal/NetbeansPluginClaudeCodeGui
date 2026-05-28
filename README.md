@@ -43,6 +43,55 @@ See the [User Manual](docs/user-manual.md) for full documentation of all plugin 
 
 ---
 
+## Use NetBeans as an MCP Server from Windsurf, Cursor, or VS Code
+
+The plugin runs a full **HTTP/SSE MCP server** inside NetBeans (default port **28991**). Any MCP-capable IDE can connect to it — not just Claude Code CLI.
+
+**Windsurf** — add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "netbeans": {
+      "serverUrl": "http://localhost:28991/sse"
+    }
+  }
+}
+```
+
+**Cursor** — add to `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "netbeans": {
+      "url": "http://localhost:28991/sse"
+    }
+  }
+}
+```
+
+**VS Code** (1.99+ native MCP, or `.vscode/mcp.json` in workspace):
+
+```json
+{
+  "servers": {
+    "netbeans": {
+      "type": "sse",
+      "url": "http://localhost:28991/sse"
+    }
+  }
+}
+```
+
+After connecting, the AI in your IDE can call NetBeans tools: `getWorkspaceFolders`, `getOpenEditors`, `getCurrentSelection`, `getDiagnostics`, `openFile`, `saveDocument`, `permission_prompt`, `show_markdown`, and more.
+
+Verify the server is running: `http://localhost:28991/status`
+
+See [docs/windsurf-cursor-vscode.md](docs/windsurf-cursor-vscode.md) for full setup instructions.
+
+---
+
 
 ## Third-party code
 
