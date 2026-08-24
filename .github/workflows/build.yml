@@ -111,11 +111,17 @@ jobs:
       - name: Build and test
         # xvfb-run provides a virtual display so Swing UI tests don't throw HeadlessException
         run: xvfb-run mvn package --batch-mode
+      - name: Generate AutoUpdate catalog
+        if: needs.calc_ver.outputs.release_flag == 'ON'
+        run: |
+          mvn nbm:autoupdate --batch-mode \
+            -Dmaven.nbm.customDistBase="https://github.com/${{ github.repository }}/releases/download/${{ needs.calc_ver.outputs.release_tag }}"
       - name: Upload artifact and release asset
         uses: nanoufo/action-upload-artifacts-and-release-assets@v2
         with:
           path: |
             target/*.nbm
+            target/netbeans_site/updates.xml
           upload-release-files: ${{ needs.calc_ver.outputs.release_flag == 'ON' }}
           release-upload-url: ${{ needs.calc_ver.outputs.release_upload_url }}
 
