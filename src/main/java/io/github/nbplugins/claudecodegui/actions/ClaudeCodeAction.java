@@ -6,7 +6,6 @@ import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
-import org.openide.awt.ActionReferences;
 import org.openide.awt.ActionRegistration;
 import org.openide.util.ImageUtilities;
 import org.openide.util.NbBundle.Messages;
@@ -25,10 +24,7 @@ import org.openide.util.NbBundle.Messages;
     lazy = false,
     asynchronous = false
 )
-@ActionReferences({
-    @ActionReference(path = "Toolbars/Build", position = 200),
-    @ActionReference(path = "Menu/Tools", position = 950)
-})
+@ActionReference(path = "Toolbars/Build", position = 200)
 @Messages("CTL_ClaudeCodeAction=Claude Code")
 public final class ClaudeCodeAction extends AbstractAction {
 
