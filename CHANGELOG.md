@@ -1,5 +1,7 @@
 # Unreleased
 
+- Fixed release workflow so pull requests build without publishing releases, while main-branch releases publish the AutoUpdate catalog and NBM assets
+
 - Added OpenAI Codex CLI support and a visible Claude Code entry in the Tools menu after Palette
 
 - Fixed Auto Mode so it bypasses tool permissions without bypassing user questions or confirmations

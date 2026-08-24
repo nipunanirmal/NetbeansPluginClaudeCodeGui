@@ -67,25 +67,34 @@ jobs:
           fi
           REL_TAG="${MM}.${BUILD_NUM}-${BRANCH}"
           VER="$REL_TAG"
-          RELEASE=ON
-          # Create or update release
-          if ! gh release view "$REL_TAG" --json id -q .id &>/dev/null; then
-            NOTES=RELNOTES.md
-            [[ -f "$NOTES" ]] || echo "Release $VER" > "$NOTES"
-            gh release create "$REL_TAG" --draft --title "$VER" --notes-file "$NOTES" || true
-          fi
-          UPLOAD_URL=$(gh release view "$REL_TAG" --json uploadUrl -q .uploadUrl 2>/dev/null || echo "")
-          # Check for manual release tag on current commit (takes precedence)
-          MANUAL_TAG=$(git tag --points-at HEAD | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
-          if [[ -n "$MANUAL_TAG" ]]; then
-            REL_TAG="$MANUAL_TAG"
-            VER="$REL_TAG"
+          RELEASE=OFF
+          UPLOAD_URL=""
+
+          # Only pushes to the default branch and manual dispatches publish releases.
+          # Pull requests must remain build-only and must never create a GitHub Release.
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" \
+                || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RELEASE=ON
+            # Create or update release
             if ! gh release view "$REL_TAG" --json id -q .id &>/dev/null; then
               NOTES=RELNOTES.md
               [[ -f "$NOTES" ]] || echo "Release $VER" > "$NOTES"
-              gh release create "$REL_TAG" --draft --title "$VER" --notes-file "$NOTES" || true
+              gh release create "$REL_TAG" --draft --title "$VER" --notes-file "$NOTES"
             fi
-            UPLOAD_URL=$(gh release view "$REL_TAG" --json uploadUrl -q .uploadUrl 2>/dev/null || echo "")
+            UPLOAD_URL=$(gh release view "$REL_TAG" --json uploadUrl -q .uploadUrl)
+
+            # Check for manual release tag on current commit (takes precedence)
+            MANUAL_TAG=$(git tag --points-at HEAD | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+            if [[ -n "$MANUAL_TAG" ]]; then
+              REL_TAG="$MANUAL_TAG"
+              VER="$REL_TAG"
+              if ! gh release view "$REL_TAG" --json id -q .id &>/dev/null; then
+                NOTES=RELNOTES.md
+                [[ -f "$NOTES" ]] || echo "Release $VER" > "$NOTES"
+                gh release create "$REL_TAG" --draft --title "$VER" --notes-file "$NOTES"
+              fi
+              UPLOAD_URL=$(gh release view "$REL_TAG" --json uploadUrl -q .uploadUrl)
+            fi
           fi
           echo "project_ver=$VER" >> $GITHUB_OUTPUT
           echo "release_flag=$RELEASE" >> $GITHUB_OUTPUT
@@ -96,6 +105,7 @@ jobs:
   build:
     needs: calc_ver
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
