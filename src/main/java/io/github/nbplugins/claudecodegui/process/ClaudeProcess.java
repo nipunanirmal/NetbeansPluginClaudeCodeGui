@@ -248,7 +248,8 @@ public final class ClaudeProcess {
         boolean devinCli = io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isDevinCli();
         boolean antigravityCli = io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isAntigravityCli();
         boolean cursorCli = io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCursorCli();
-        boolean externalCli = devinCli || antigravityCli || cursorCli;
+        boolean codexCli = io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCodexCli();
+        boolean externalCli = devinCli || antigravityCli || cursorCli || codexCli;
 
         List<String> cmd = new ArrayList<>();
         cmd.add(executable);
@@ -261,12 +262,13 @@ public final class ClaudeProcess {
             int port = mcp.getServerPort();
             if (io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isMcpEnabled()) {
                 if (externalCli) {
-                    // Devin, Antigravity and Cursor register MCP servers persistently via
-                    // their own config (e.g. 'devin mcp add' / 'antigravity mcp add' /
-                    // Cursor's ~/.cursor/mcp.json). Passing a --config flag would replace
+                    // Devin, Antigravity, Cursor, and Codex register MCP servers persistently
+                    // via their own config. Passing a --config flag would replace
                     // the entire user config, so we must NOT do that here.
                     // The user registers the netbeans server once manually.
-                    String cliName = devinCli ? "Devin" : antigravityCli ? "Antigravity" : "Cursor";
+                    String cliName = devinCli ? "Devin"
+                            : antigravityCli ? "Antigravity"
+                            : cursorCli ? "Cursor" : "Codex";
                     LOG.info(cliName + " CLI: MCP is registered persistently; skipping config flag. Port: " + port);
                 } else {
                     // Claude uses --mcp-config <PATH>.
@@ -294,7 +296,7 @@ public final class ClaudeProcess {
                     LOG.warning("Could not write .claude/settings.local.json: " + e.getMessage());
                 }
             } else {
-                // External CLIs (Antigravity, Devin, Cursor) read .claude/settings.local.json
+                // External CLIs (Antigravity, Devin, Cursor, Codex) read .claude/settings.local.json
                 // too. Strip any systemPrompt left by a previous Claude Code session so the
                 // external CLI does not inject it as a first user message and trigger
                 // a runaway resource-search loop.
@@ -374,9 +376,14 @@ public final class ClaudeProcess {
 
         boolean selfManagedSessions =
                 io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isDevinCli()
-                || io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCursorCli();
+                || io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCursorCli()
+                || io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCodexCli();
         if (mode == SessionMode.CONTINUE_LAST) {
-            if (selfManagedSessions) {
+            if (io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCodexCli()) {
+                cmd.add("resume");
+                cmd.add("--last");
+                LOG.fine("Session mode: resume --last (Codex CLI)");
+            } else if (selfManagedSessions) {
                 // Devin and Cursor manage their own session store; skip the Claude session check.
                 cmd.add("--continue");
                 LOG.fine("Session mode: --continue (self-managed sessions, no session check)");
@@ -394,9 +401,15 @@ public final class ClaudeProcess {
             }
         } else if (mode == SessionMode.RESUME_SPECIFIC
                 && resumeSessionId != null && !resumeSessionId.isBlank()) {
-            cmd.add("--resume");
-            cmd.add(resumeSessionId);
-            LOG.fine("Session mode: --resume " + resumeSessionId);
+            if (io.github.nbplugins.claudecodegui.settings.ClaudeCodePreferences.isCodexCli()) {
+                cmd.add("resume");
+                cmd.add(resumeSessionId);
+                LOG.fine("Session mode: resume " + resumeSessionId + " (Codex CLI)");
+            } else {
+                cmd.add("--resume");
+                cmd.add(resumeSessionId);
+                LOG.fine("Session mode: --resume " + resumeSessionId);
+            }
         }
     }
 

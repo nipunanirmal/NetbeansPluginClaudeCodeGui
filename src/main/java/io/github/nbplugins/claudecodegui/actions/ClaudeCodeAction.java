@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
+import org.openide.awt.ActionReferences;
 import org.openide.awt.ActionRegistration;
 import org.openide.util.ImageUtilities;
 import org.openide.util.NbBundle.Messages;
@@ -24,7 +25,10 @@ import org.openide.util.NbBundle.Messages;
     lazy = false,
     asynchronous = false
 )
-@ActionReference(path = "Toolbars/Build", position = 200)
+@ActionReferences({
+    @ActionReference(path = "Toolbars/Build", position = 200),
+    @ActionReference(path = "Menu/Tools", position = 950)
+})
 @Messages("CTL_ClaudeCodeAction=Claude Code")
 public final class ClaudeCodeAction extends AbstractAction {
 
@@ -54,6 +58,10 @@ public final class ClaudeCodeAction extends AbstractAction {
             iconPath   = ICON_CURSOR;
             iconPath32 = ICON_CURSOR_32;
             label      = "Cursor";
+        } else if (ClaudeCodePreferences.isCodexCli()) {
+            iconPath   = ICON_CLAUDE;
+            iconPath32 = ICON_CLAUDE_32;
+            label      = "OpenAI Codex";
         } else {
             iconPath   = ICON_CLAUDE;
             iconPath32 = ICON_CLAUDE_32;

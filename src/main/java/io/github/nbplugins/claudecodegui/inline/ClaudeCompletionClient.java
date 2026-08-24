@@ -71,7 +71,8 @@ public final class ClaudeCompletionClient {
         String executable     = ClaudeCodePreferences.resolveClaudeExecutable();
         boolean isClaude      = !ClaudeCodePreferences.isDevinCli()
                 && !ClaudeCodePreferences.isAntigravityCli()
-                && !ClaudeCodePreferences.isCursorCli();
+                && !ClaudeCodePreferences.isCursorCli()
+                && !ClaudeCodePreferences.isCodexCli();
 
         // Use an atomic reference so the process can be force-killed when the
         // future is cancelled (prevents parallel CLI processes piling up).
@@ -153,7 +154,8 @@ public final class ClaudeCompletionClient {
         String executable = ClaudeCodePreferences.resolveClaudeExecutable();
         boolean isClaude  = !ClaudeCodePreferences.isDevinCli()
                 && !ClaudeCodePreferences.isAntigravityCli()
-                && !ClaudeCodePreferences.isCursorCli();
+                && !ClaudeCodePreferences.isCursorCli()
+                && !ClaudeCodePreferences.isCodexCli();
 
         return CompletableFuture.supplyAsync(() -> {
             List<String> cmd = buildCommand(executable, prompt, isClaude);
@@ -217,6 +219,11 @@ public final class ClaudeCompletionClient {
             cmd.add(prompt);
             cmd.add("--permission-mode");
             cmd.add("auto");
+        } else if (ClaudeCodePreferences.isCodexCli()) {
+            // Codex CLI: exec "prompt" runs a non-interactive completion.
+            cmd.add("exec");
+            cmd.add("--skip-git-repo-check");
+            cmd.add(prompt);
         } else {
             // Antigravity / Cursor / other: assume --print -p "prompt" like Claude
             cmd.add("--print");

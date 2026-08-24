@@ -88,6 +88,7 @@ public final class ClaudeCodePreferences {
         if (isDevinCli()) return "devin";
         if (isAntigravityCli()) return "agy";
         if (isCursorCli()) return "cursor-agent";
+        if (isCodexCli()) return "codex";
         return "claude";
     }
 
@@ -118,6 +119,10 @@ public final class ClaudeCodePreferences {
                     ? new String[]{"cursor-agent.exe", "cursor-agent.cmd", "cursor-agent",
                                    "agent.exe", "agent.cmd", "agent"}
                     : new String[]{"cursor-agent", "agent"};
+        } else if (isCodexCli()) {
+            candidates = isWindows
+                    ? new String[]{"codex.exe", "codex.cmd", "codex"}
+                    : new String[]{"codex"};
         } else {
             candidates = isWindows
                     ? new String[]{"claude.cmd", "claude.exe", "claude"}
@@ -997,6 +1002,8 @@ public final class ClaudeCodePreferences {
     public static final String CLI_TYPE_ANTIGRAVITY = "antigravity";
     /** Value: use Cursor CLI ({@code cursor-agent} / {@code agent}). */
     public static final String CLI_TYPE_CURSOR = "cursor";
+    /** Value: use OpenAI Codex CLI ({@code codex}). */
+    public static final String CLI_TYPE_CODEX = "codex";
     /** Default: Claude Code. */
     public static final String DEFAULT_CLI_TYPE = CLI_TYPE_CLAUDE;
 
@@ -1019,6 +1026,7 @@ public final class ClaudeCodePreferences {
         String resolved = CLI_TYPE_DEVIN.equals(type) ? CLI_TYPE_DEVIN
                 : CLI_TYPE_ANTIGRAVITY.equals(type) ? CLI_TYPE_ANTIGRAVITY
                 : CLI_TYPE_CURSOR.equals(type) ? CLI_TYPE_CURSOR
+                : CLI_TYPE_CODEX.equals(type) ? CLI_TYPE_CODEX
                 : CLI_TYPE_CLAUDE;
         NbPreferences.forModule(ClaudeCodePreferences.class).put(KEY_CLI_TYPE, resolved);
     }
@@ -1048,6 +1056,11 @@ public final class ClaudeCodePreferences {
      */
     public static boolean isCursorCli() {
         return CLI_TYPE_CURSOR.equals(getCliType());
+    }
+
+    /** Returns {@code true} when the OpenAI Codex CLI is selected. */
+    public static boolean isCodexCli() {
+        return CLI_TYPE_CODEX.equals(getCliType());
     }
 
     private static String validated(String value, String fallback) {

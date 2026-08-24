@@ -1,5 +1,7 @@
 # Unreleased
 
+- Added OpenAI Codex CLI support and a visible Claude Code entry in the Tools menu after Palette
+
 - Fixed Auto Mode so it bypasses tool permissions without bypassing user questions or confirmations
 
 - Added inline AI ghost-text completion in the source editor: the configured CLI (`claude`, `devin`, `agy`, or `cursor-agent`) is invoked headlessly after a configurable pause, and the suggestion appears as grey italic ghost text; press **Tab** to accept, any other key to dismiss

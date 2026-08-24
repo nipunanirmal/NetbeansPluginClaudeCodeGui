@@ -23,6 +23,7 @@ class ClaudeCodePreferencesTest {
         ClaudeCodePreferences.setFileDiffDockMode(ClaudeCodePreferences.DEFAULT_FILE_DIFF_DOCK_MODE);
         ClaudeCodePreferences.setTerminalFontName(ClaudeCodePreferences.DEFAULT_TERMINAL_FONT_NAME);
         ClaudeCodePreferences.setTerminalFontSize(ClaudeCodePreferences.DEFAULT_TERMINAL_FONT_SIZE);
+        ClaudeCodePreferences.setCliType(ClaudeCodePreferences.DEFAULT_CLI_TYPE);
     }
 
     @Test
@@ -73,6 +74,16 @@ class ClaudeCodePreferencesTest {
         assertNotNull(resolved);
         assertFalse(resolved.isBlank(),
                 "resolveClaudeExecutable must never return blank");
+    }
+
+    @Test
+    void codexCliUsesCodexExecutable() {
+        ClaudeCodePreferences.setCliType(ClaudeCodePreferences.CLI_TYPE_CODEX);
+        ClaudeCodePreferences.setClaudeExecutablePath("");
+        assertTrue(ClaudeCodePreferences.isCodexCli());
+        String executable = ClaudeCodePreferences.resolveClaudeExecutable();
+        assertTrue(executable.endsWith("codex") || executable.endsWith("codex.exe"),
+                "resolved executable must be Codex CLI");
     }
 
     @Test
