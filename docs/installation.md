@@ -6,9 +6,9 @@
 |-------------|-----------------|
 | [Apache NetBeans IDE](https://netbeans.apache.org/front/main/download/) | 23 (RELEASE230) |
 | Java | 17 |
-| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/getting-started) (`claude`) | 2.1.78 |
+| One supported AI CLI (`claude`, `devin`, `agy`, `cursor-agent`, or `codex`) | See the CLI selection guide below |
 
-> **Note:** The plugin has been tested with Claude Code CLI 2.1.78 and newer. Older versions may not work correctly.
+> **Important:** The embedded terminal requires an installed AI CLI. Choose the AI CLI you want to use in **Tools → Options → Claude Code → Advanced → CLI type**, install that CLI, and ensure its executable is on your `PATH` (or configure its absolute path in **CLI executable path**).
 
 > **Terminal font (recommended):** The plugin auto-selects the best available monospace font. For full Unicode coverage of Claude Code TUI symbols (spinner ◐, prompt marker ⏵, box-drawing characters), install **Adwaita Mono**. On Linux it is typically pre-installed as part of the GNOME desktop. On macOS and Windows, download it from the [GNOME GitLab release page](https://gitlab.gnome.org/GNOME/adwaita-fonts/-/releases). The active font can be changed in **Tools → Options → Claude Code → General**.
 
@@ -18,15 +18,23 @@ The `claude` executable must be on your system `PATH` **or** its absolute path m
 
 ## Installation
 
-### NetBeans Plugin Portal
-
-The plugin is available in the [NetBeans Plugin Portal](https://plugins.netbeans.apache.org/). Open NetBeans → **Tools → Plugins → Available Plugins**, search for **Claude Code GUI**, and click **Install**.
-
-> **Note:** Due to the plugin portal's publication cycle, the version available there may be older than the latest release on GitHub. If you need the newest version, download it directly from [GitHub Releases](#recommended-download-from-github-releases).
-
 ### Recommended: download from GitHub Releases
 
 Download the latest `.nbm` file from the [Releases page](https://github.com/nipunanirmal/NetbeansPlugin-IDE-Devin-ClaudeCode/releases/latest).
+
+### Choose and install an AI CLI
+
+The embedded terminal cannot start until an AI CLI is installed. After installing the plugin, open **Tools → Options → Claude Code → Advanced**, choose the **CLI type** that matches the CLI you installed, and leave **CLI executable path** empty to auto-detect it from `PATH` (or enter the absolute path manually).
+
+| AI / CLI type | Executable |
+|---|---|
+| Claude Code | `claude` |
+| Devin | `devin` |
+| Google Antigravity | `agy` |
+| Cursor | `cursor-agent` or `agent` |
+| OpenAI Codex | `codex` |
+
+The selected CLI must be installed separately using its official installation method. If no CLI is installed, the plugin can still expose NetBeans as an MCP server for another MCP-capable AI client, but the embedded terminal will not launch.
 
 ### Intermediate builds
 

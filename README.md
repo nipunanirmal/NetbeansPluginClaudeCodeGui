@@ -1,4 +1,4 @@
-# NetBeans IDE AI Plugin — Full Swing UI Support for Claude, Devin, Windsurf, Cursor
+# NetBeans IDE AI Plugin — Full Swing UI Support for Claude, Devin, Antigravity, Cursor, Codex, and Windsurf
 
 ![Build](https://github.com/nipunanirmal/NetbeansPlugin-IDE-Devin-ClaudeCode/actions/workflows/build.yml/badge.svg)
 [![Release](https://img.shields.io/github/v/release/nipunanirmal/NetbeansPlugin-IDE-Devin-ClaudeCode)](https://github.com/nipunanirmal/NetbeansPlugin-IDE-Devin-ClaudeCode/releases/latest)
@@ -10,7 +10,7 @@
 >
 > **🎯 Key Feature: 100% Swing UI Creation** — This MCP can create fully functional NetBeans Swing forms (`.form` + `.java`) with proper GEN markers, color encoding, event handlers, and layouts that open correctly in the NetBeans GUI Designer on the first try.
 
-NetBeans Claude Code GUI is a NetBeans IDE plugin that embeds an AI CLI (Claude Code **or Devin**) as a full interactive terminal session directly inside the IDE. You type prompts in a dedicated session tab, the AI reads and edits your project files, and the plugin provides:
+NetBeans Claude Code GUI is a NetBeans IDE plugin that embeds a selected AI CLI (Claude Code, Devin, Google Antigravity, Cursor, or OpenAI Codex) as a full interactive terminal session directly inside the IDE. You type prompts in a dedicated session tab, the AI reads and edits your project files, and the plugin provides:
 
 - **Graphical file diff** — review every proposed file change before it is written to disk; accept, decline (with an optional reason), or interrupt Claude
 - **Interactive choice menu** — Claude's Yes/No and multiple-choice prompts appear as a native panel instead of raw terminal text
@@ -40,8 +40,9 @@ To run the AI as a full interactive terminal session **inside NetBeans** (the ma
 
 - **Claude Code** → install the [`claude`](https://docs.anthropic.com/en/docs/claude-code/getting-started) CLI
 - **Devin** → install the [`devin`](#devin-cli-setup) CLI
-- **Google Antigravity** → install the [`antigravity`](https://antigravity.google/docs/cli-overview) CLI
+- **Google Antigravity** → install the [`agy`](https://antigravity.google/docs/cli-overview) CLI
 - **Cursor** → install the [`cursor-agent`](#cursor-cli-setup) CLI
+- **OpenAI Codex** → install the [`codex`](#codex-cli-setup) CLI
 
 The chosen CLI must be on your system `PATH` (or its absolute path configured in **Tools → Options → Claude Code**). Without the CLI installed, the embedded terminal cannot launch.
 
@@ -142,6 +143,21 @@ Cursor reads MCP servers from `~/.cursor/mcp.json` (global) or `.cursor/mcp.json
 ### 4. Start a session
 
 Click the **Cursor** toolbar button (or open the session tab) — `cursor-agent` will launch in the embedded terminal with the MCP server already connected.
+
+---
+
+## Codex CLI Setup
+
+The plugin can also embed the **OpenAI Codex CLI** (`codex`) as an interactive terminal session inside NetBeans.
+
+1. Install the Codex CLI using OpenAI's official installation instructions.
+2. Verify that `codex` is available on your `PATH` with `codex --version`.
+3. Open **Tools → Options → Claude Code → Advanced**.
+4. Set **CLI type** to **OpenAI Codex (codex)**.
+5. Leave **CLI executable path** blank for automatic detection, or enter the absolute path to the Codex executable.
+6. Click **OK** and restart the session if prompted.
+
+Codex uses its own configuration and authentication. The embedded session supports new sessions, continuing the last session, and resuming a specific session through the Codex CLI.
 
 ---
 

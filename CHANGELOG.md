@@ -1,5 +1,7 @@
 # Unreleased
 
+- Removed the inaccurate NetBeans Plugin Portal installation instructions, documented the required AI CLI selection and installation steps, and removed the Claude icon from the NetBeans Options category
+
 - Fixed release workflow so pull requests build without publishing releases, while main-branch releases publish the AutoUpdate catalog and NBM assets
 
 - Added OpenAI Codex CLI support and a visible Claude Code entry in the Tools menu after Palette
