@@ -39,8 +39,8 @@ public enum EditMode {
     ACCEPT_EDITS("acceptEdits"),
 
     /**
-     * Auto mode — a classifier auto-approves safe tool calls including all file
-     * edits, blocking only dangerous operations (mass deletion, data exfiltration, etc.).
+     * Auto mode — a classifier bypasses permission checks for safe tool operations,
+     * including file edits, but does not bypass user questions or confirmations.
      * Available on Max/Team/Enterprise/API plans (Claude Code 2.1.83+).
      * Detected on screen as {@code ⏵⏵ auto mode on (shift+tab to cycle)}.
      */

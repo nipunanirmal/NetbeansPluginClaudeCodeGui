@@ -184,8 +184,42 @@ public class MCPSseServer {
      * @param proxy   proxy settings from the profile (used by the servlet's HttpClient)
      */
     public void registerOpenAIProxy(String uuid, String baseUrl, String apiKey, ProxyConfiguration proxy) {
-        openAIProxies.put(uuid, new OpenAIProxyConfig(baseUrl, apiKey, proxy));
+        registerOpenAIProxy(uuid, baseUrl, apiKey, proxy, null);
+    }
+
+    /**
+     * Registers an OpenAI-compatible proxy session, additionally recording the
+     * owning profile id so the servlet can look up per-model experimental
+     * prompt-caching settings ({@link io.github.nbplugins.claudecodegui.settings.ClaudeProfile#isExplicitPromptCachingEnabled}).
+     *
+     * @param uuid      unique session identifier
+     * @param baseUrl   provider base URL
+     * @param apiKey    provider API key
+     * @param proxy     proxy settings from the profile (used by the servlet's HttpClient)
+     * @param profileId owning profile id, or {@code null}
+     */
+    public void registerOpenAIProxy(String uuid, String baseUrl, String apiKey, ProxyConfiguration proxy,
+            String profileId) {
+        openAIProxies.put(uuid, new OpenAIProxyConfig(OpenAIProxyConfig.Mode.CHAT_COMPLETIONS,
+                baseUrl, apiKey, proxy, profileId, null, null));
         LOGGER.log(Level.FINE, "OpenAI proxy registered: uuid={0}", uuid);
+    }
+
+    /**
+     * Registers a ChatGPT-subscription proxy session, routed to OpenAI's
+     * Codex Responses API instead of the generic Chat Completions API.
+     *
+     * @param uuid        unique session identifier
+     * @param profileId   owning profile id, used to re-fetch the live profile for token refresh
+     * @param accessToken ChatGPT OAuth access token
+     * @param accountId   {@code chatgpt_account_id} claim
+     * @param proxy       proxy settings from the profile (used by the servlet's HttpClient)
+     */
+    public void registerChatgptSubscriptionProxy(String uuid, String profileId, String accessToken,
+            String accountId, ProxyConfiguration proxy) {
+        openAIProxies.put(uuid, new OpenAIProxyConfig(OpenAIProxyConfig.Mode.CHATGPT_CODEX,
+                "https://chatgpt.com/backend-api/codex", accessToken, proxy, profileId, accessToken, accountId));
+        LOGGER.log(Level.FINE, "ChatGPT subscription proxy registered: uuid={0}", uuid);
     }
 
     /**

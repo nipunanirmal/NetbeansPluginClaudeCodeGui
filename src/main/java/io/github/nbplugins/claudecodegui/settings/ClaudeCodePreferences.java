@@ -872,6 +872,118 @@ public final class ClaudeCodePreferences {
     }
 
     // -------------------------------------------------------------------------
+    // Inline completion
+    // -------------------------------------------------------------------------
+
+    /** Preference key: whether inline AI ghost-text completion is enabled. */
+    public static final String KEY_INLINE_ENABLED = "inlineCompletionEnabled";
+    /** Default: enabled. */
+    public static final boolean DEFAULT_INLINE_ENABLED = true;
+
+    /** Preference key: trigger mode for inline completion. */
+    public static final String KEY_INLINE_TRIGGER_MODE = "inlineCompletionTriggerMode";
+    /** Value: automatic ghost-text on pause. */
+    public static final String INLINE_TRIGGER_AUTO   = "auto";
+    /** Value: explicit trigger only (Alt+\). */
+    public static final String INLINE_TRIGGER_MANUAL = "manual";
+    /** Default: auto. */
+    public static final String DEFAULT_INLINE_TRIGGER_MODE = INLINE_TRIGGER_AUTO;
+
+    /** Preference key: debounce delay in milliseconds before triggering inline completion. */
+    public static final String KEY_INLINE_DELAY_MS = "inlineCompletionDelayMs";
+    /** Default delay: 1500 ms. */
+    public static final int DEFAULT_INLINE_DELAY_MS = 1500;
+
+    /** Preference key: profile name override for inline completion (empty = use last session profile). */
+    public static final String KEY_INLINE_PROFILE_OVERRIDE = "inlineCompletionProfileOverride";
+    /** Default: empty (use last session's profile). */
+    public static final String DEFAULT_INLINE_PROFILE_OVERRIDE = "";
+
+    /**
+     * Returns whether inline AI ghost-text completion is enabled.
+     *
+     * @return {@code true} if enabled
+     */
+    public static boolean isInlineCompletionEnabled() {
+        return NbPreferences.forModule(ClaudeCodePreferences.class)
+                .getBoolean(KEY_INLINE_ENABLED, DEFAULT_INLINE_ENABLED);
+    }
+
+    /**
+     * Persists the inline completion enabled flag.
+     *
+     * @param enabled {@code true} to enable
+     */
+    public static void setInlineCompletionEnabled(boolean enabled) {
+        NbPreferences.forModule(ClaudeCodePreferences.class)
+                .putBoolean(KEY_INLINE_ENABLED, enabled);
+    }
+
+    /**
+     * Returns the trigger mode for inline completion.
+     *
+     * @return {@link #INLINE_TRIGGER_AUTO} or {@link #INLINE_TRIGGER_MANUAL}
+     */
+    public static String getInlineTriggerMode() {
+        return NbPreferences.forModule(ClaudeCodePreferences.class)
+                .get(KEY_INLINE_TRIGGER_MODE, DEFAULT_INLINE_TRIGGER_MODE);
+    }
+
+    /**
+     * Persists the inline completion trigger mode.
+     *
+     * @param mode {@link #INLINE_TRIGGER_AUTO} or {@link #INLINE_TRIGGER_MANUAL}
+     */
+    public static void setInlineTriggerMode(String mode) {
+        String resolved = INLINE_TRIGGER_MANUAL.equals(mode)
+                ? INLINE_TRIGGER_MANUAL : INLINE_TRIGGER_AUTO;
+        NbPreferences.forModule(ClaudeCodePreferences.class)
+                .put(KEY_INLINE_TRIGGER_MODE, resolved);
+    }
+
+    /**
+     * Returns the debounce delay in milliseconds before triggering inline completion.
+     *
+     * @return delay in ms
+     */
+    public static int getInlineDelayMs() {
+        return NbPreferences.forModule(ClaudeCodePreferences.class)
+                .getInt(KEY_INLINE_DELAY_MS, DEFAULT_INLINE_DELAY_MS);
+    }
+
+    /**
+     * Persists the inline completion debounce delay.
+     *
+     * @param ms delay in milliseconds (clamped to 500–5000)
+     */
+    public static void setInlineDelayMs(int ms) {
+        int clamped = Math.max(500, Math.min(5000, ms));
+        NbPreferences.forModule(ClaudeCodePreferences.class)
+                .putInt(KEY_INLINE_DELAY_MS, clamped);
+    }
+
+    /**
+     * Returns the profile name override for inline completion, or an empty string
+     * meaning "use the last session's profile".
+     *
+     * @return profile name, or {@code ""}
+     */
+    public static String getInlineProfileOverride() {
+        return NbPreferences.forModule(ClaudeCodePreferences.class)
+                .get(KEY_INLINE_PROFILE_OVERRIDE, DEFAULT_INLINE_PROFILE_OVERRIDE);
+    }
+
+    /**
+     * Persists the inline completion profile override.
+     *
+     * @param profileName profile name, or empty to use the last session's profile
+     */
+    public static void setInlineProfileOverride(String profileName) {
+        NbPreferences.forModule(ClaudeCodePreferences.class)
+                .put(KEY_INLINE_PROFILE_OVERRIDE, profileName == null ? "" : profileName);
+    }
+
+    // -------------------------------------------------------------------------
     // cliType
     // -------------------------------------------------------------------------
 

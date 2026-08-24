@@ -50,4 +50,19 @@
         </folder>
     </folder>
 
+
+    <!-- Inline AI actions (assign shortcuts via Tools → Keyboard Shortcuts) -->
+    <folder name="Editors">
+        <folder name="Actions">
+            <file name="trigger-inline-ai-completion.instance">
+                <attr name="instanceCreate"
+                      newvalue="io.github.nbplugins.claudecodegui.inline.TriggerCompletionAction"/>
+            </file>
+            <file name="show-inline-ai-instruction.instance">
+                <attr name="instanceCreate"
+                      newvalue="io.github.nbplugins.claudecodegui.inline.ShowInstructionAction"/>
+            </file>
+        </folder>
+    </folder>
+
 </filesystem>

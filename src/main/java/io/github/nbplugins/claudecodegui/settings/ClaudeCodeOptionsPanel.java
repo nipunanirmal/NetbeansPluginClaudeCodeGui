@@ -112,6 +112,19 @@ public final class ClaudeCodeOptionsPanel extends JPanel {
     /** Dropdown for the CLI type (Claude Code or Devin). */
     private javax.swing.JComboBox<String> cliTypeCombo;
 
+    /** Checkbox to enable inline AI ghost-text completion. */
+    private javax.swing.JCheckBox inlineEnabledCheck;
+    /** Radio button: trigger inline completion automatically on pause. */
+    private javax.swing.JRadioButton inlineTriggerAutoRadio;
+    /** Radio button: trigger inline completion manually only (Alt+\). */
+    private javax.swing.JRadioButton inlineTriggerManualRadio;
+    /** Button group for the inline trigger mode radios. */
+    private final ButtonGroup inlineTriggerGroup = new ButtonGroup();
+    /** Spinner for the inline completion debounce delay in milliseconds. */
+    private JSpinner inlineDelaySpinner;
+    /** Combo box for the inline completion profile override. */
+    private javax.swing.JComboBox<String> inlineProfileCombo;
+
     /** send-key radio buttons: value → button */
     private final Map<String, JRadioButton> sendRadios = new LinkedHashMap<>();
     /** newline-key radio buttons: value → button */
@@ -293,6 +306,65 @@ public final class ClaudeCodeOptionsPanel extends JPanel {
             }
         });
         form.add(terminalFontButton, gbc(2, row, false));
+        row++;
+
+        // --- inline completion section ---
+        GridBagConstraints inlineSepGbc = new GridBagConstraints();
+        inlineSepGbc.gridx = 0; inlineSepGbc.gridy = row;
+        inlineSepGbc.gridwidth = 3;
+        inlineSepGbc.fill = GridBagConstraints.HORIZONTAL;
+        inlineSepGbc.insets = new Insets(12, 8, 0, 8);
+        form.add(new javax.swing.JSeparator(), inlineSepGbc);
+        row++;
+
+        GridBagConstraints inlineTitleGbc = new GridBagConstraints();
+        inlineTitleGbc.gridx = 0; inlineTitleGbc.gridy = row;
+        inlineTitleGbc.gridwidth = 3;
+        inlineTitleGbc.anchor = GridBagConstraints.WEST;
+        inlineTitleGbc.insets = new Insets(4, 8, 2, 8);
+        form.add(new JLabel("<html><b>Inline Completion</b></html>"), inlineTitleGbc);
+        row++;
+
+        inlineEnabledCheck = new javax.swing.JCheckBox("Enable inline AI ghost-text completion");
+        GridBagConstraints inlineEnGbc = new GridBagConstraints();
+        inlineEnGbc.gridx = 0; inlineEnGbc.gridy = row;
+        inlineEnGbc.gridwidth = 3;
+        inlineEnGbc.anchor = GridBagConstraints.WEST;
+        inlineEnGbc.insets = new Insets(2, 8, 2, 8);
+        form.add(inlineEnabledCheck, inlineEnGbc);
+        inlineEnabledCheck.addActionListener(e -> updateInlineDelayEnabled());
+        row++;
+
+        JPanel inlineTriggerPanel = new JPanel(new java.awt.FlowLayout(
+                java.awt.FlowLayout.LEFT, 8, 0));
+        inlineTriggerPanel.setBorder(BorderFactory.createTitledBorder("Trigger mode:"));
+        inlineTriggerAutoRadio   = new javax.swing.JRadioButton("Auto (on pause)");
+        inlineTriggerManualRadio = new javax.swing.JRadioButton("Manual only (Alt+\\)");
+        inlineTriggerGroup.add(inlineTriggerAutoRadio);
+        inlineTriggerGroup.add(inlineTriggerManualRadio);
+        inlineTriggerPanel.add(inlineTriggerAutoRadio);
+        inlineTriggerPanel.add(inlineTriggerManualRadio);
+        inlineTriggerAutoRadio.addActionListener(e -> updateInlineDelayEnabled());
+        inlineTriggerManualRadio.addActionListener(e -> updateInlineDelayEnabled());
+        GridBagConstraints inlineTrigGbc = new GridBagConstraints();
+        inlineTrigGbc.gridx = 0; inlineTrigGbc.gridy = row;
+        inlineTrigGbc.gridwidth = 3;
+        inlineTrigGbc.anchor = GridBagConstraints.WEST;
+        inlineTrigGbc.insets = new Insets(2, 8, 2, 8);
+        form.add(inlineTriggerPanel, inlineTrigGbc);
+        row++;
+
+        form.add(new JLabel("Delay (ms):"), gbc(0, row, false));
+        inlineDelaySpinner = new JSpinner(new SpinnerNumberModel(
+                ClaudeCodePreferences.DEFAULT_INLINE_DELAY_MS, 500, 5000, 100));
+        inlineDelaySpinner.setToolTipText("Milliseconds to wait after typing stops before triggering completion");
+        form.add(inlineDelaySpinner, gbc(1, row, false));
+        row++;
+
+        form.add(new JLabel("Profile override:"), gbc(0, row, false));
+        inlineProfileCombo = new javax.swing.JComboBox<>();
+        inlineProfileCombo.setToolTipText("Profile to use for inline completions (default: last session profile)");
+        form.add(inlineProfileCombo, gbc(1, row, false));
         row++;
 
         // spacer
@@ -518,7 +590,53 @@ public final class ClaudeCodeOptionsPanel extends JPanel {
         updateTerminalFontLabel(ClaudeCodePreferences.getTerminalFontName(),
                 ClaudeCodePreferences.getTerminalFontSize());
 
+        // --- inline completion ---
+        inlineEnabledCheck.setSelected(ClaudeCodePreferences.isInlineCompletionEnabled());
+        boolean autoMode = ClaudeCodePreferences.INLINE_TRIGGER_AUTO.equals(
+                ClaudeCodePreferences.getInlineTriggerMode());
+        inlineTriggerAutoRadio.setSelected(autoMode);
+        inlineTriggerManualRadio.setSelected(!autoMode);
+        inlineDelaySpinner.setValue(ClaudeCodePreferences.getInlineDelayMs());
+        populateInlineProfileCombo();
+        String profileOverride = ClaudeCodePreferences.getInlineProfileOverride();
+        selectInlineProfile(profileOverride);
+        updateInlineDelayEnabled();
+
         profilesPanel.load();
+    }
+
+    private void populateInlineProfileCombo() {
+        inlineProfileCombo.removeAllItems();
+        inlineProfileCombo.addItem("Default (current session)");
+        for (io.github.nbplugins.claudecodegui.settings.ClaudeProfile p
+                : io.github.nbplugins.claudecodegui.settings.ClaudeProfileStore.getProfiles()) {
+            if (!p.isDefault()) {
+                inlineProfileCombo.addItem(p.getName());
+            }
+        }
+    }
+
+    private void selectInlineProfile(String name) {
+        if (name == null || name.isBlank()) {
+            inlineProfileCombo.setSelectedIndex(0);
+            return;
+        }
+        for (int i = 0; i < inlineProfileCombo.getItemCount(); i++) {
+            if (name.equals(inlineProfileCombo.getItemAt(i))) {
+                inlineProfileCombo.setSelectedIndex(i);
+                return;
+            }
+        }
+        inlineProfileCombo.setSelectedIndex(0);
+    }
+
+    private void updateInlineDelayEnabled() {
+        boolean enabled = inlineEnabledCheck.isSelected();
+        boolean autoMode = inlineTriggerAutoRadio.isSelected();
+        inlineTriggerAutoRadio.setEnabled(enabled);
+        inlineTriggerManualRadio.setEnabled(enabled);
+        inlineDelaySpinner.setEnabled(enabled && autoMode);
+        inlineProfileCombo.setEnabled(enabled);
     }
 
     /**
@@ -569,6 +687,17 @@ public final class ClaudeCodeOptionsPanel extends JPanel {
         ClaudeCodePreferences.setNewlineKey(selectedValue(newlineRadios));
         ClaudeCodePreferences.setTerminalFontName(pendingFontName);
         ClaudeCodePreferences.setTerminalFontSize(pendingFontSize);
+
+        // --- inline completion ---
+        ClaudeCodePreferences.setInlineCompletionEnabled(inlineEnabledCheck.isSelected());
+        ClaudeCodePreferences.setInlineTriggerMode(
+                inlineTriggerManualRadio.isSelected()
+                        ? ClaudeCodePreferences.INLINE_TRIGGER_MANUAL
+                        : ClaudeCodePreferences.INLINE_TRIGGER_AUTO);
+        ClaudeCodePreferences.setInlineDelayMs((Integer) inlineDelaySpinner.getValue());
+        int profileSel = inlineProfileCombo.getSelectedIndex();
+        ClaudeCodePreferences.setInlineProfileOverride(
+                profileSel <= 0 ? "" : (String) inlineProfileCombo.getSelectedItem());
 
         profilesPanel.store();
     }

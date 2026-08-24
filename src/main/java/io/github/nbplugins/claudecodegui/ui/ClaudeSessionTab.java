@@ -211,9 +211,12 @@ public class ClaudeSessionTab extends TopComponent
         boolean ctrl = (e.getModifiersEx() & InputEvent.CTRL_DOWN_MASK) != 0;
         if (!ctrl) return false;
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_0:      SwingUtilities.invokeLater(this::resetZoom); return true;
-            case KeyEvent.VK_MINUS:  SwingUtilities.invokeLater(this::zoomOut);   return true;
-            case KeyEvent.VK_EQUALS: SwingUtilities.invokeLater(this::zoomIn);    return true;
+            case KeyEvent.VK_0:
+            case KeyEvent.VK_NUMPAD0:  SwingUtilities.invokeLater(this::resetZoom); return true;
+            case KeyEvent.VK_MINUS:
+            case KeyEvent.VK_SUBTRACT: SwingUtilities.invokeLater(this::zoomOut);   return true;
+            case KeyEvent.VK_EQUALS:
+            case KeyEvent.VK_ADD:      SwingUtilities.invokeLater(this::zoomIn);    return true;
             default: return false;
         }
     };
@@ -346,7 +349,9 @@ public class ClaudeSessionTab extends TopComponent
                     return wd != null ? wd.getAbsolutePath() : null;
                 },
                 () -> onSaveAndSwitch("", SessionMode.NEW, null),
-                () -> openSwitchDialog(SessionMode.RESUME_SPECIFIC));
+                () -> openSwitchDialog(SessionMode.RESUME_SPECIFIC),
+                this::showSessionStatistics,
+                this::isSessionStatisticsAvailable);
 
         // --- layout ---
         setLayout(new BorderLayout());
@@ -864,7 +869,8 @@ public class ClaudeSessionTab extends TopComponent
         sessionTag = "[" + dir.getName() + "] ";
         settingsProvider = new NetBeansSettingsProvider();
         settingsProvider.setZoomDelta(termZoomDelta);
-        ZoomableJediTermWidget widget = new ZoomableJediTermWidget(settingsProvider, this);
+        ZoomableJediTermWidget widget = new ZoomableJediTermWidget(settingsProvider, this,
+                this::showSessionStatistics, this::isSessionStatisticsAvailable);
         Color termBg = UIManager.getColor("EditorPane.background");
         if (termBg == null) termBg = UIManager.getColor("Panel.background");
         if (termBg != null) {
@@ -1225,6 +1231,33 @@ public class ClaudeSessionTab extends TopComponent
      *
      * @param initialMode the session mode to pre-select in the dialog
      */
+    /**
+     * Whether Session Statistics is available for the current session — only
+     * true while the session is using the OpenAI-compatible or ChatGPT
+     * Subscription connection type (the only ones the plugin's proxy sees
+     * traffic for; see {@link #showSessionStatistics()}).
+     */
+    private boolean isSessionStatisticsAvailable() {
+        return controller.getOpenAIProxyUuid() != null;
+    }
+
+    /**
+     * Shows the Session Statistics dialog (cumulative cache/usage stats), sourced
+     * from the current session's {@code OpenAIProxyConfig} if it's using the
+     * OpenAI-compatible or ChatGPT Subscription connection type.
+     */
+    private void showSessionStatistics() {
+        String uuid = controller.getOpenAIProxyUuid();
+        java.util.function.Supplier<io.github.nbplugins.claudecodegui.openaiproxy.OpenAIProxyConfig> supplier = () -> {
+            if (uuid == null) return null;
+            io.github.nbplugins.claudecodegui.ClaudeCodeInstaller installer =
+                    org.openide.util.Lookup.getDefault().lookup(io.github.nbplugins.claudecodegui.ClaudeCodeInstaller.class);
+            return installer != null ? installer.getOpenAIProxyConfig(uuid) : null;
+        };
+        java.awt.Frame mainFrame = org.openide.windows.WindowManager.getDefault().getMainWindow();
+        new SessionStatisticsDialog(mainFrame, supplier).setVisible(true);
+    }
+
     public void openSwitchDialog(SessionMode initialMode) {
         File workingDir = model.getWorkingDirectory();
         if (workingDir == null) return;

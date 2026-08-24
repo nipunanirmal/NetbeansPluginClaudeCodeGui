@@ -117,6 +117,10 @@ public class ClaudeCodeInstaller extends ModuleInstall implements PropertyChange
             }
         });
 
+        // Start inline AI ghost-text completion service
+        WindowManager.getDefault().invokeWhenUIReady(
+                io.github.nbplugins.claudecodegui.inline.InlineCompletionService::start);
+
         LOGGER.info("Claude Code NetBeans plugin started successfully");
     }
 
@@ -370,8 +374,27 @@ public class ClaudeCodeInstaller extends ModuleInstall implements PropertyChange
     @Override
     public void registerOpenAIProxy(String uuid, String baseUrl, String apiKey,
             io.github.nbplugins.claudecodegui.settings.ProxyConfiguration proxy) {
+        registerOpenAIProxy(uuid, baseUrl, apiKey, proxy, null);
+    }
+
+    /**
+     * Registers an OpenAI-compatible proxy session, additionally recording the
+     * owning profile id (not part of the {@code ClaudeCodeStatusService}
+     * legacy interface — callers that have a profile id available should
+     * prefer this overload; see {@code ClaudeProcess.start()}).
+     */
+    public void registerOpenAIProxy(String uuid, String baseUrl, String apiKey,
+            io.github.nbplugins.claudecodegui.settings.ProxyConfiguration proxy, String profileId) {
         if (mcpServer != null) {
-            mcpServer.registerOpenAIProxy(uuid, baseUrl, apiKey, proxy);
+            mcpServer.registerOpenAIProxy(uuid, baseUrl, apiKey, proxy, profileId);
+        }
+    }
+
+    @Override
+    public void registerChatgptSubscriptionProxy(String uuid, String profileId, String accessToken,
+            String accountId, io.github.nbplugins.claudecodegui.settings.ProxyConfiguration proxy) {
+        if (mcpServer != null) {
+            mcpServer.registerChatgptSubscriptionProxy(uuid, profileId, accessToken, accountId, proxy);
         }
     }
 

@@ -102,6 +102,10 @@ class ClaudeProcessTest {
         assertTrue(result.contains("PreToolUse"), "should add PreToolUse hook");
         assertTrue(result.contains("http://127.0.0.1:8990/hook"), "should contain hook URL");
         assertTrue(result.contains("Edit|Write|MultiEdit"), "should contain matcher");
+        assertTrue(result.contains("AUTO MODE POLICY"), "should define Auto Mode as permission-only bypass");
+        assertTrue(result.contains("must never bypass user questions"),
+                "Auto Mode must not bypass user questions");
+        assertTrue(result.contains("AskUserQuestion"), "should require AskUserQuestion for user decisions");
     }
 
     @Test

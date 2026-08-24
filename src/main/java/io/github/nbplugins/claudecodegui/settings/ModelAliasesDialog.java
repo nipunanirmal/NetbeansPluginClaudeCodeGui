@@ -1,6 +1,8 @@
 package io.github.nbplugins.claudecodegui.settings;
 
+import io.github.nbplugins.claudecodegui.ui.common.BasicTextContextMenu;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -20,13 +22,15 @@ import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingWorker;
+import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
@@ -40,17 +44,34 @@ public final class ModelAliasesDialog extends JDialog {
 
     private static final String[] ALIASES = {"", "sonnet", "opus", "haiku", "custom"};
 
-    /** The base URL of the Other API endpoint, used when fetching available models. */
-    private final String baseUrl;
-    /** The API key used when fetching available models. */
-    private final String apiKey;
+    /**
+     * Fetches the list of available model IDs for the "Fetch" button.
+     * Called off the EDT, inside this dialog's own {@link SwingWorker} — implementations
+     * may perform blocking network I/O directly.
+     */
+    public interface ModelFetcher {
+        /**
+         * Fetches the current list of available model IDs.
+         *
+         * @return model IDs; never {@code null}
+         * @throws Exception on any fetch failure (network, auth, parse, etc.) —
+         *         the message is shown to the user via the dialog's status label
+         */
+        List<String> fetch() throws Exception;
+    }
+
+    /** Strategy used by the "Fetch" button. */
+    private final ModelFetcher fetcher;
 
     /** Table model for the model alias rows. */
     private DefaultTableModel tableModel;
     /** Table displaying model aliases. */
     private JTable table;
-    /** Label showing the fetch status or errors. */
-    private JLabel statusLabel;
+    /**
+     * Read-only status area (fetch progress / errors). Implemented as a selectable
+     * {@link JTextArea} so the user can copy error text to the clipboard.
+     */
+    private JTextArea statusArea;
 
     /** Non-null after the user clicks OK; null if cancelled. */
     private List<ModelAlias> result = null;
@@ -60,7 +81,8 @@ public final class ModelAliasesDialog extends JDialog {
     // -------------------------------------------------------------------------
 
     /**
-     * Creates a new model aliases dialog.
+     * Creates a new model aliases dialog that fetches from an OpenAI-compatible
+     * {@code /v1/models} endpoint using an API key.
      *
      * @param parent  parent component for centering
      * @param baseUrl base URL of the Other API endpoint
@@ -69,14 +91,62 @@ public final class ModelAliasesDialog extends JDialog {
      */
     public ModelAliasesDialog(Component parent, String baseUrl, String apiKey,
                               List<ModelAlias> initial) {
+        this(parent, httpModelFetcher(baseUrl, apiKey), initial);
+    }
+
+    /**
+     * Creates a new model aliases dialog with a custom fetch strategy — used for
+     * connection types (e.g. ChatGPT Subscription) that don't fetch via a plain
+     * API-key-authenticated {@code /v1/models} endpoint.
+     *
+     * @param parent  parent component for centering
+     * @param fetcher strategy invoked by the "Fetch" button
+     * @param initial pre-existing model aliases to populate the table with
+     */
+    public ModelAliasesDialog(Component parent, ModelFetcher fetcher, List<ModelAlias> initial) {
         super(JOptionPane.getFrameForComponent(parent), "Model Aliases", true);
-        this.baseUrl = baseUrl == null ? "" : baseUrl.trim();
-        this.apiKey  = apiKey  == null ? "" : apiKey.trim();
+        this.fetcher = fetcher;
 
         initComponents(initial);
         pack();
-        setMinimumSize(new Dimension(600, 350));
+        setMinimumSize(new Dimension(600, 400));
         setLocationRelativeTo(parent);
+    }
+
+    /**
+     * Default {@link ModelFetcher} for OpenAI-compatible providers: {@code GET
+     * {baseUrl}/v1/models} with {@code Authorization: Bearer <apiKey>}.
+     */
+    private static ModelFetcher httpModelFetcher(String baseUrl, String apiKey) {
+        String url = baseUrl == null ? "" : baseUrl.trim();
+        String key = apiKey  == null ? "" : apiKey.trim();
+        return () -> {
+            if (url.isBlank()) {
+                throw new IllegalStateException("Base URL is empty — cannot fetch.");
+            }
+            String fetchUrl = url.replaceAll("/+$", "") + "/v1/models";
+            LOG.fine("Fetch models: GET " + fetchUrl);
+
+            HttpURLConnection conn = (HttpURLConnection) new URL(fetchUrl).openConnection();
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(15_000);
+            conn.setRequestMethod("GET");
+            if (!key.isBlank()) {
+                conn.setRequestProperty("Authorization", "Bearer " + key);
+            }
+            conn.setRequestProperty("Accept", "application/json");
+
+            int status = conn.getResponseCode();
+            String body;
+            try (InputStream is = status < 400 ? conn.getInputStream() : conn.getErrorStream()) {
+                body = is == null ? "" : new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            LOG.fine("Fetch models: response body: " + body);
+            if (status < 200 || status >= 300) {
+                throw new IOException("Fetch models: failed HTTP " + status);
+            }
+            return parseModelIds(body);
+        };
     }
 
     // -------------------------------------------------------------------------
@@ -101,10 +171,10 @@ public final class ModelAliasesDialog extends JDialog {
         getRootPane().setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         // --- Table ---
-        tableModel = new DefaultTableModel(new String[]{"ID", "Available", "Alias"}, 0) {
-            @Override public boolean isCellEditable(int row, int col) { return col == 2; }
+        tableModel = new DefaultTableModel(new String[]{"ID", "Available", "Alias", "Explicit Cache"}, 0) {
+            @Override public boolean isCellEditable(int row, int col) { return col == 2 || col == 3; }
             @Override public Class<?> getColumnClass(int col) {
-                return col == 1 ? Boolean.class : String.class;
+                return col == 1 || col == 3 ? Boolean.class : String.class;
             }
         };
         table = new JTable(tableModel);
@@ -112,6 +182,7 @@ public final class ModelAliasesDialog extends JDialog {
         table.getColumnModel().getColumn(0).setPreferredWidth(240);
         table.getColumnModel().getColumn(1).setPreferredWidth(70);
         table.getColumnModel().getColumn(2).setPreferredWidth(90);
+        table.getColumnModel().getColumn(3).setPreferredWidth(60);
 
         // Available column renderer: null→"", true→✓ green, false→✗ red
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
@@ -138,6 +209,9 @@ public final class ModelAliasesDialog extends JDialog {
         JComboBox<String> aliasCombo = new JComboBox<>(ALIASES);
         table.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(aliasCombo));
 
+        // Explicit Cache column: experimental explicit prompt caching (GPT-≥5.6: prompt_cache_options/
+        // breakpoint; older GPT models: 24h retention). Auto-enabled for GPT-5.6+ model IDs.
+
         // Drag-and-drop reordering
         table.setDragEnabled(true);
         table.setDropMode(javax.swing.DropMode.INSERT_ROWS);
@@ -145,7 +219,7 @@ public final class ModelAliasesDialog extends JDialog {
 
         // Populate
         for (ModelAlias m : initial) {
-            tableModel.addRow(new Object[]{m.id(), m.available(), m.alias()});
+            tableModel.addRow(new Object[]{m.id(), m.available(), m.alias(), m.explicitPromptCaching()});
         }
 
         JScrollPane scroll = new JScrollPane(table);
@@ -199,11 +273,22 @@ public final class ModelAliasesDialog extends JDialog {
         center.add(btnPanel, BorderLayout.EAST);
         add(center, BorderLayout.CENTER);
 
-        // --- Status label ---
-        statusLabel = new JLabel(" ");
-        add(statusLabel, BorderLayout.SOUTH);
+        // --- Status area (wraps long error text; selectable/copyable) and OK / Cancel.
+        // Both go into one SOUTH panel — BorderLayout.SOUTH and PAGE_END are the
+        // same slot, so putting them separately made the status line invisible.
+        statusArea = new JTextArea(" ");
+        statusArea.setEditable(false);
+        statusArea.setFocusable(true);
+        statusArea.setLineWrap(true);
+        statusArea.setWrapStyleWord(true);
+        statusArea.setOpaque(false);
+        statusArea.setBorder(new EmptyBorder(2, 2, 2, 2));
+        statusArea.setRows(3);
+        // Match dialog body font rather than monospaced editor default.
+        statusArea.setFont(UIManager.getFont("Label.font"));
+        statusArea.setForeground(UIManager.getColor("Label.foreground"));
+        BasicTextContextMenu.attach(statusArea, BasicTextContextMenu.createReadOnly(statusArea));
 
-        // --- OK / Cancel ---
         JButton okBtn     = new JButton("OK");
         JButton cancelBtn = new JButton("Cancel");
         okBtn    .addActionListener(e -> onOk());
@@ -213,7 +298,13 @@ public final class ModelAliasesDialog extends JDialog {
         JPanel okPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         okPanel.add(okBtn);
         okPanel.add(cancelBtn);
-        add(okPanel, BorderLayout.PAGE_END);
+
+        JPanel south = new JPanel(new BorderLayout(0, 4));
+        south.add(new JScrollPane(statusArea,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.CENTER);
+        south.add(okPanel, BorderLayout.SOUTH);
+        add(south, BorderLayout.SOUTH);
     }
 
     // -------------------------------------------------------------------------
@@ -221,58 +312,48 @@ public final class ModelAliasesDialog extends JDialog {
     // -------------------------------------------------------------------------
 
     private void onFetch() {
-        if (baseUrl.isBlank()) {
-            statusLabel.setText("Base URL is empty — cannot fetch.");
-            return;
-        }
-        String fetchUrl = baseUrl.replaceAll("/+$", "") + "/v1/models";
-        statusLabel.setText("Fetching...");
-        LOG.fine("Fetch models: GET " + fetchUrl);
+        setStatus("Fetching...", false);
 
-        new SwingWorker<FetchResult, Void>() {
-            @Override protected FetchResult doInBackground() throws Exception {
-                HttpURLConnection conn = (HttpURLConnection) new URL(fetchUrl).openConnection();
-                conn.setConnectTimeout(10_000);
-                conn.setReadTimeout(15_000);
-                conn.setRequestMethod("GET");
-                if (!apiKey.isBlank()) {
-                    conn.setRequestProperty("Authorization", "Bearer " + apiKey);
-                }
-                conn.setRequestProperty("Accept", "application/json");
-
-                int status = conn.getResponseCode();
-                String body;
-                try (InputStream is = status < 400 ? conn.getInputStream() : conn.getErrorStream()) {
-                    body = is == null ? "" : new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                }
-                LOG.fine("Fetch models: response body: " + body);
-                return new FetchResult(status, body);
+        new SwingWorker<List<String>, Void>() {
+            @Override protected List<String> doInBackground() throws Exception {
+                return fetcher.fetch();
             }
 
             @Override protected void done() {
                 try {
-                    FetchResult r = get();
-                    if (r.status() >= 200 && r.status() < 300) {
-                        List<String> ids = parseModelIds(r.body());
-                        applyFetchedIds(ids);
-                        LOG.info("Fetch models: response " + r.status() + ", " + ids.size() + " models returned");
-                        statusLabel.setText("Fetched " + ids.size() + " models, "
-                                + countAvailable() + " available");
-                    } else {
-                        String msg = "Fetch models: failed HTTP " + r.status();
-                        LOG.warning(msg);
-                        statusLabel.setText(msg);
-                    }
+                    List<String> ids = get();
+                    applyFetchedIds(ids);
+                    LOG.info("Fetch models: " + ids.size() + " models returned");
+                    setStatus("Fetched " + ids.size() + " models, " + countAvailable() + " available", false);
                 } catch (Exception ex) {
-                    String msg = "Fetch models: failed — " + ex.getMessage();
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    String msg = "Fetch models: failed — " + cause.getMessage();
                     LOG.warning(msg);
-                    statusLabel.setText(msg);
+                    setStatus(msg, true);
                 }
             }
         }.execute();
     }
 
-    private record FetchResult(int status, String body) {}
+    /**
+     * Sets the status text. The area is selectable / copyable (Ctrl+C or
+     * right-click → Copy via {@link BasicTextContextMenu#createReadOnly}) so
+     * upstream error bodies can be pasted into a bug report. Errors show in red.
+     *
+     * @param text  status / error text
+     * @param error {@code true} to render in red
+     */
+    private void setStatus(String text, boolean error) {
+        statusArea.setText(text == null || text.isBlank() ? " " : text);
+        statusArea.setCaretPosition(0);
+        statusArea.setToolTipText(text);
+        Color fg = error ? Color.RED.darker() : UIManager.getColor("Label.foreground");
+        statusArea.setForeground(fg != null ? fg : Color.BLACK);
+    }
+
+    private void setStatus(String text) {
+        setStatus(text, false);
+    }
 
     /** Parses {@code data[].id} from an OpenAI-compatible {@code /v1/models} response. */
     static List<String> parseModelIds(String json) {
@@ -315,7 +396,7 @@ public final class ModelAliasesDialog extends JDialog {
         // Append new rows not already present
         for (String id : fetchedIds) {
             if (!existing.contains(id)) {
-                tableModel.addRow(new Object[]{id, Boolean.TRUE, ""});
+                tableModel.addRow(new Object[]{id, Boolean.TRUE, "", ModelAlias.defaultExplicitPromptCaching(id)});
             }
         }
     }
@@ -344,7 +425,7 @@ public final class ModelAliasesDialog extends JDialog {
         rows.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
         tableModel.setRowCount(0);
         for (ModelAlias m : rows) {
-            tableModel.addRow(new Object[]{m.id(), m.available(), m.alias()});
+            tableModel.addRow(new Object[]{m.id(), m.available(), m.alias(), m.explicitPromptCaching()});
         }
     }
 
@@ -368,12 +449,12 @@ public final class ModelAliasesDialog extends JDialog {
         if (id == null) return;
         id = id.trim();
         String error = validateModelId(id, -1);
-        if (error != null) { statusLabel.setText(error); return; }
-        tableModel.addRow(new Object[]{id, null, ""});
+        if (error != null) { setStatus(error); return; }
+        tableModel.addRow(new Object[]{id, null, "", ModelAlias.defaultExplicitPromptCaching(id)});
         int newRow = tableModel.getRowCount() - 1;
         table.setRowSelectionInterval(newRow, newRow);
         table.scrollRectToVisible(table.getCellRect(newRow, 0, true));
-        statusLabel.setText(" ");
+        setStatus(" ");
     }
 
     private void onRename() {
@@ -387,10 +468,10 @@ public final class ModelAliasesDialog extends JDialog {
         newId = newId.trim();
         if (newId.equals(current)) return;
         String error = validateModelId(newId, sel);
-        if (error != null) { statusLabel.setText(error); return; }
+        if (error != null) { setStatus(error); return; }
         tableModel.setValueAt(newId, sel, 0);
         tableModel.setValueAt(null, sel, 1);
-        statusLabel.setText(" ");
+        setStatus(" ");
     }
 
     String validateModelId(String id, int skipRow) {
@@ -446,8 +527,10 @@ public final class ModelAliasesDialog extends JDialog {
             String id    = (String)  tableModel.getValueAt(i, 0);
             Boolean avail = (Boolean) tableModel.getValueAt(i, 1);
             String alias = (String)  tableModel.getValueAt(i, 2);
+            Boolean cache = (Boolean) tableModel.getValueAt(i, 3);
             if (id != null && !id.isBlank()) {
-                models.add(new ModelAlias(id, avail, alias == null ? "" : alias));
+                models.add(new ModelAlias(id, avail, alias == null ? "" : alias,
+                        Boolean.TRUE.equals(cache)));
             }
         }
         return models;

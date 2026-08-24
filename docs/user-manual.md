@@ -485,34 +485,38 @@ Select the authentication type using the radio buttons:
 | Type | Fields to fill in | How to authenticate |
 |------|------------------|-------------------|
 | **Claude Managed** | None | Claude manages authentication itself. Run `claude` in a terminal once to set it up, or Claude will prompt you on first launch. Use `/login` in the session terminal to re-authenticate. |
-| **Subscription** | OAuth token | Obtain the token at [claude.ai](https://claude.ai) (requires Pro, Max, Team, or Enterprise subscription). **Note:** OAuth tokens expire periodically and must be regenerated and re-entered manually. For a smoother experience, prefer **Claude Managed** instead. |
+| **Claude Subscription** | OAuth token | Obtain the token at [claude.ai](https://claude.ai) (requires Pro, Max, Team, or Enterprise subscription). **Note:** OAuth tokens expire periodically and must be regenerated and re-entered manually. For a smoother experience, prefer **Claude Managed** instead. |
 | **Claude API** | API key | Obtain the key at [console.anthropic.com](https://console.anthropic.com) (requires an Anthropic Console account with API access). |
 | **Claude-compatible API** | API key + Base URL | Use the API key and base URL provided by your third-party provider (Anthropic-compatible endpoint). |
 | **OpenAI-compatible API** | API key + Base URL | Route Claude Code through any OpenAI-compatible provider. The plugin starts an internal proxy that translates Anthropic API calls to OpenAI Chat Completions format. See [OpenAI-compatible API](#openai-compatible-api) below. |
+| **ChatGPT Subscription** | Sign in via browser | Route Claude Code through OpenAI's Codex backend using a ChatGPT Free, Go, Plus, Pro, or Team subscription instead of an API key. See [ChatGPT Subscription](#chatgpt-subscription) below. |
 
 > **Note:** Changes to connection parameters (API key, Base URL) take effect only after restarting the session.
 
-### Model aliases (Claude-compatible API only)
+### Model aliases (Claude-compatible API, OpenAI-compatible API, and ChatGPT Subscription)
 
-If your provider names models differently from Anthropic's standard names, the plugin cannot match them to the `sonnet`, `opus`, and `haiku` aliases used by Claude Code. In that case, set the alias to the actual model ID used by your provider (for example, with an `anthropic/` prefix).
+If your provider names models differently from Anthropic's standard names, the plugin cannot match them to the `sonnet`, `opus`, and `haiku` aliases used by Claude Code. In that case, set the alias to the actual model ID used by your provider (for example, with an `anthropic/` prefix). For **ChatGPT Subscription**, **Model Aliases…** becomes available once you're signed in and fetches the live list of models available to your account instead of a fixed list.
 
 Click **Model Aliases…** to open the Model Aliases dialog.
 
 ![Model Aliases dialog](screenshots/model-aliases.png)
 
-The dialog shows a table with three columns:
+The dialog shows a table with four columns:
 
 | Column | Description |
 |--------|-------------|
 | **ID** | The model identifier as returned by the provider |
 | **Available** | ✓ if the model was found at the endpoint during the last Fetch; ✗ otherwise |
 | **Alias** | The standard alias to map this model to: `sonnet`, `opus`, `haiku`, `custom`, or blank (no alias) |
+| **Explicit Cache** | Experimental: send explicit prompt-cache control to the provider for this model (see below) |
+
+**Explicit Cache column (experimental):** GPT-5.6-family models changed how automatic prompt caching works, making it unreliable for long conversations with a stable system prompt and a growing message history — exactly the pattern of an ongoing coding session (see [ChatGPT Subscription rate limits](#chatgpt-subscription) below for background). Checking this column sends explicit cache-control fields to the provider for that model: GPT-5.6+ models get an explicit cache breakpoint (limited to a 30-minute cache lifetime by the provider); older GPT models get a 24-hour cache retention hint instead. It's checked by default for GPT-5.6-family model IDs and has no effect for non-GPT models (e.g. Grok, Gemini) — their own caching, if any, is unaffected. Since this relies on provider behavior that isn't fully documented, treat it as experimental — uncheck it for a model if you notice no improvement or unexpected errors.
 
 **Buttons:**
 
 | Button | Effect |
 |--------|--------|
-| **Fetch** | Queries the provider's models endpoint using the configured API key, fills the table with discovered model IDs, and marks each as available (✓) or unavailable (✗) |
+| **Fetch** | Queries the provider's models endpoint (using the configured API key, or your signed-in ChatGPT session for **ChatGPT Subscription**), fills the table with discovered model IDs, and marks each as available (✓) or unavailable (✗) |
 | **Add** | Opens an input dialog; enter a model ID to append a new row to the table (with blank alias and no availability mark) |
 | **Rename** | Opens an input dialog pre-filled with the selected row's ID; confirm to update the model ID in place |
 | **↑ / ↓** | Reorder rows — the order determines how models appear in the status bar model selector |
@@ -591,6 +595,34 @@ Without model aliases, Claude Code will send Anthropic model names (e.g. `claude
 - Not all OpenAI-compatible models support all Claude Code features (tool use, large context windows). Using an incompatible model may cause errors.
 - Images in conversations (base64 content) are forwarded in OpenAI vision format; provider must support it.
 - Changes to the profile's Base URL or API Key take effect only after restarting the session.
+
+### ChatGPT Subscription
+
+Routes Claude Code through OpenAI's own Codex backend using your ChatGPT Free, Go, Plus, Pro, or Team subscription, instead of an OpenAI API key. Like **OpenAI-compatible API**, this works via the plugin's internal proxy — no changes to Claude Code CLI are required.
+
+**How it works:**
+
+The plugin never opens or waits on a browser itself, since the browser you sign in with may be on a different network path (proxy, VPN, remote machine) than the plugin. Instead:
+
+1. Click **Copy sign in link** — the plugin generates a one-time sign-in link and copies it to the clipboard.
+2. Paste the link into your own browser and sign in to your ChatGPT account there.
+3. After signing in, copy the code shown on the confirmation page and paste it back into the field in the plugin.
+4. Click **Complete Sign-in**. The profile now shows **Signed in as `<email>`**.
+
+You can click **Copy sign in link** again at any time to cancel a stuck attempt and generate a fresh link — there is no timeout to wait out.
+
+**Setup:**
+
+1. Create a new profile and select **ChatGPT Subscription** as the connection type.
+2. Sign in as described above.
+3. Open **Model Aliases…** and click **Fetch** to pull the current list of models available to your account, then assign aliases the same way as for [OpenAI-compatible API](#model-aliases-claude-compatible-api-openai-compatible-api-and-chatgpt-subscription) above.
+
+**Limitations:**
+
+- Only models Codex actually supports for a ChatGPT-subscription login work — arbitrary model IDs will be rejected by OpenAI's backend.
+- Usage is subject to your ChatGPT subscription's own rate limits, shared across all Codex/ChatGPT clients on that account. When the limit is reached, Claude Code now reports it immediately as a rate-limit error instead of retrying; the message doesn't currently include the exact reset time reported by the backend.
+- The `/usage` command shows only local, per-session statistics (tokens/cost for the current conversation) — it does not query any live account-wide usage or quota endpoint, so it never reflects your ChatGPT subscription's remaining quota or reset time, for any connection type.
+- Sign-in tokens are refreshed automatically while a session is running; if a refresh fails (e.g. the session was revoked from your OpenAI account), sign in again from the Profiles tab.
 
 ### Extra environment variables
 
